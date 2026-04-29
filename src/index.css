@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 220 48% 26%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 48% 26%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 48% 26%;
+
+    --primary: 220 48% 26%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 218 94% 65%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 220 100% 98%;
+    --muted-foreground: 0 0% 27%;
+
+    --accent: 220 48% 26%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 20% 90%;
+    --input: 220 20% 90%;
+    --ring: 218 94% 65%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 220 48% 20%;
+    --sidebar-foreground: 220 10% 90%;
+    --sidebar-primary: 218 94% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 40% 22%;
+    --sidebar-accent-foreground: 220 10% 90%;
+    --sidebar-border: 220 30% 25%;
+    --sidebar-ring: 218 94% 65%;
+
+    --sumos-navy: 220 48% 26%;
+    --sumos-dark-navy: 220 50% 20%;
+    --sumos-green: 142 55% 45%;
+    --sumos-green-soft: 142 55% 92%;
+    --sumos-light-green: 108 100% 96%;
+    --sumos-lime: 90 60% 60%;
+    --sumos-lime-soft: 90 60% 92%;
+    --sumos-blue: 218 94% 65%;
+    --sumos-light-blue: 218 94% 80%;
+    --sumos-gray: 220 100% 98%;
+    --sumos-border: 220 20% 90%;
+  }
+
+  .dark {
+    --background: 220 50% 6%;
+    --foreground: 220 10% 92%;
+    --card: 220 45% 10%;
+    --card-foreground: 220 10% 92%;
+    --popover: 220 45% 10%;
+    --popover-foreground: 220 10% 92%;
+    --primary: 218 94% 65%;
+    --primary-foreground: 220 50% 8%;
+    --secondary: 220 35% 18%;
+    --secondary-foreground: 220 10% 92%;
+    --muted: 220 30% 15%;
+    --muted-foreground: 220 10% 60%;
+    --accent: 218 94% 65%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 220 30% 18%;
+    --input: 220 30% 18%;
+    --ring: 218 94% 65%;
+    --sidebar-background: 220 50% 5%;
+    --sidebar-foreground: 220 10% 90%;
+    --sidebar-primary: 218 94% 65%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 40% 12%;
+    --sidebar-accent-foreground: 220 10% 90%;
+    --sidebar-border: 220 30% 15%;
+    --sidebar-ring: 218 94% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+}
