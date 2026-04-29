@@ -96,6 +96,6 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Ghost Trial', sans-serif;
   }
 }
