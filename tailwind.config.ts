@@ -14,7 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Plus Jakarta Sans', 'sans-serif'],
+        // Postavljen Ghost Trial kao primarni font aplikacije
+        sans: ['Ghost Trial', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -50,6 +51,27 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Integrisana tvoja nova brend paleta
+        sumos: {
+          blue: {
+            100: "#518EFA",
+            200: "#455369",
+            300: "#233662",
+          },
+          green: {
+            100: "#F9F8D6",
+            200: "#B6D989",
+            300: "#64A550",
+            400: "#185904",
+          },
+          gray: {
+            50: "#FFFFFF",
+            100: "#E5E7EB",
+            200: "#BFBFBF",
+            300: "#444444",
+            400: "#000000",
+          },
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -59,18 +81,6 @@ export default {
           "accent-foreground": "hsl(var(--sidebar-accent-foreground))",
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
-        },
-        sumos: {
-          navy: "hsl(var(--sumos-navy))",
-          "dark-navy": "hsl(var(--sumos-dark-navy))",
-          green: "hsl(var(--sumos-green))",
-          "green-soft": "hsl(var(--sumos-green-soft))",
-          "light-green": "hsl(var(--sumos-light-green))",
-          lime: "hsl(var(--sumos-lime))",
-          "lime-soft": "hsl(var(--sumos-lime-soft))",
-          blue: "hsl(var(--sumos-blue))",
-          "light-blue": "hsl(var(--sumos-light-blue))",
-          gray: "hsl(var(--sumos-gray))",
         },
       },
       borderRadius: {
@@ -94,5 +104,4 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
 } satisfies Config;
