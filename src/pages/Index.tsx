@@ -92,7 +92,7 @@ const Index = () => {
       {/* Hero Section */}
       <section className="relative min-h-[600px] w-full overflow-hidden bg-sumos-gray-50 py-16 lg:py-20 font-sans">
         
-        {/* Pozadinski Blob - Fiksiran za gornji levi ugao */}
+        {/* Pozadinski Blob - Fiksiran za gornji levi ugao  */}
         <img 
           src={heroBlob} 
           alt="" 
