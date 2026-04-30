@@ -4,6 +4,29 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 
+@font-face {
+  font-family: 'Ghost Trial';
+  src: url('/fonts/GhostTrial-Regular.woff2') format('woff2'),
+       url('/fonts/GhostTrial-Regular.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans text-sumos-gray-400 bg-sumos-gray-50;
+  }
+  
+  h1, h2, h3, h4 {
+    @apply text-sumos-blue-300 font-normal tracking-tight;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -96,6 +119,6 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-family: 'Ghost Trial', sans-serif;
   }
 }
