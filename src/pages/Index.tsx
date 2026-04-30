@@ -41,7 +41,8 @@ const actionCards = [
   {
     step: "STEP 01",
     title: "Take a survey",
-    description: "It is a survey about students' green awareness and sustainable habits.",
+    description:
+      "It is a survey about students' green awareness and sustainable habits.",
     link: "/survey",
     icon: <ClipboardCheck className="h-10 w-10 text-sumos-blue-100" />,
     borderColor: "border-sumos-blue-100/30",
@@ -50,7 +51,8 @@ const actionCards = [
   {
     step: "STEP 02",
     title: "Launch benchmark",
-    description: "Compare your results with others based on gender, country, mobility participation, etc.",
+    description:
+      "Compare your results with others based on gender, country, mobility participation, etc.",
     link: "/benchmark",
     icon: <BarChart3 className="h-10 w-10 text-sumos-green-300" />,
     borderColor: "border-sumos-green-200",
@@ -59,7 +61,8 @@ const actionCards = [
   {
     step: "STEP 03",
     title: "Get suggestions",
-    description: "See tips and recommendations to improve your sustainable habits and awareness.",
+    description:
+      "See tips and recommendations to improve your sustainable habits and awareness.",
     link: "/suggestions",
     icon: <Lightbulb className="h-10 w-10 text-sumos-green-300" />,
     borderColor: "border-sumos-green-100",
@@ -91,11 +94,10 @@ const Index = () => {
     <Layout>
       {/* Hero Section */}
       <section className="relative min-h-[600px] w-full overflow-hidden bg-sumos-gray-50 py-16 lg:py-20 font-sans">
-        
         {/* Pozadinski Blob - Fiksiran za gornji levi ugao  */}
-        <img 
-          src={heroBlob} 
-          alt="" 
+        <img
+          src={heroBlob}
+          alt=""
           className="
             absolute left-0 top-0 
             h-[105%] w-full            
@@ -111,7 +113,6 @@ const Index = () => {
 
         <div className="container relative z-10">
           <div className="grid items-center gap-12 lg:grid-cols-2">
-            
             {/* Leva strana: Tekst */}
             <div className="flex flex-col items-start gap-6 lg:max-w-lg">
               <img src={logoFull} alt="SuMoS" className="h-14 w-auto" />
@@ -119,17 +120,23 @@ const Index = () => {
                 Benchmarking tool
               </h1>
               <p className="text-lg text-sumos-blue-200 leading-relaxed">
-                The benchmarking tool is part of the Erasmus+ European Commission
-                co-funded Education project "<strong className="text-sumos-blue-300 font-medium">Strengthening the Ecosystem for
-                Sustainable Modern Industry</strong>" (SuMoS).
+                The benchmarking tool is part of the Erasmus+ European
+                Commission co-funded Education project "
+                <strong className="text-sumos-blue-300 font-medium">
+                  Strengthening the Ecosystem for Sustainable Modern Industry
+                </strong>
+                " (SuMoS).
               </p>
-              <Button asChild className="rounded-md bg-sumos-blue-100 px-8 h-12 text-white font-medium hover:bg-sumos-blue-100/90 shadow-sm border-none">
+              <Button
+                asChild
+                className="rounded-md bg-sumos-blue-100 px-8 h-12 text-white font-medium hover:bg-sumos-blue-100/90 shadow-sm border-none"
+              >
                 <Link to="/survey">
                   Take a survey <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
             </div>
-            
+
             {/* Desna strana: Ilustracija */}
             <div className="relative flex justify-center lg:justify-end">
               <img
@@ -151,7 +158,9 @@ const Index = () => {
               to={card.link}
               className={`group relative flex flex-col items-start rounded-xl border bg-white p-8 pt-12 transition-all hover:shadow-lg ${card.borderColor}`}
             >
-              <span className={`absolute top-4 right-4 rounded px-2 py-0.5 text-[10px] font-bold text-white tracking-wider ${card.badgeColor}`}>
+              <span
+                className={`absolute top-4 right-4 rounded px-2 py-0.5 text-[10px] font-bold text-white tracking-wider ${card.badgeColor}`}
+              >
                 {card.step}
               </span>
               <div className="mb-6">{card.icon}</div>
@@ -266,7 +275,9 @@ const Index = () => {
                   <p className="text-[10px] font-bold uppercase tracking-widest text-sumos-gray-300 mb-1">
                     {stat.label}
                   </p>
-                  <p className={`text-2xl font-bold ${i === 0 ? "text-sumos-blue-100" : "text-sumos-green-300"}`}>
+                  <p
+                    className={`text-2xl font-bold ${i === 0 ? "text-sumos-blue-100" : "text-sumos-green-300"}`}
+                  >
                     {stat.value}
                   </p>
                 </div>
@@ -279,7 +290,9 @@ const Index = () => {
       {/* Green Awareness Section */}
       <section className="container py-20 font-sans">
         <div className="mb-10 flex items-center justify-between">
-          <h2 className="text-4xl font-normal text-sumos-blue-300">Green awareness</h2>
+          <h2 className="text-4xl font-normal text-sumos-blue-300">
+            Green awareness
+          </h2>
           <Link
             to="/statistics"
             className="flex items-center text-sm font-bold text-sumos-blue-100 hover:underline"
@@ -335,37 +348,6 @@ const Index = () => {
           ))}
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="border-t border-sumos-gray-100 bg-white py-14 font-sans">
-        <div className="container">
-          <div className="flex flex-col md:flex-row justify-between items-start gap-12 mb-12">
-            <div className="text-xs space-y-1">
-              <p className="font-bold text-sumos-gray-300 uppercase tracking-widest mb-3">Project Coordinator</p>
-              <p className="font-bold text-sumos-blue-300 text-sm">Assoc. Prof. Katarina Pažur Aničić, Ph.D.</p>
-              <p className="text-sumos-blue-200">Faculty of Organization and Informatics, University of Zagreb</p>
-              <p className="text-sumos-blue-100 font-medium">sumos@foi.unizg.hr</p>
-            </div>
-            
-            <div className="flex items-center gap-10">
-              <img src={logoFull} alt="SuMoS Logo" className="h-16 w-auto" />
-              <div className="flex items-center gap-4 border-l border-sumos-gray-100 pl-8">
-                <img src={logoEu} alt="EU co-funded" className="h-12 w-auto" />
-                <div className="text-[10px] leading-tight text-sumos-gray-300 max-w-[160px]">
-                  Co-funded by the Erasmus+ Programme of the European Union
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <div className="mt-8 border-t border-sumos-gray-50 pt-8 text-center text-[10px] text-sumos-gray-200">
-            <p className="max-w-3xl mx-auto mb-2 italic">
-              The sole responsibility for the content of this website lies with the authors. It does not necessarily reflect the opinion of the European Union.
-            </p>
-            <p>© Copyright 2026 FOI Varaždin. All Rights Reserved.</p>
-          </div>
-        </div>
-      </footer>
     </Layout>
   );
 };
