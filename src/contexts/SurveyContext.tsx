@@ -1,7 +1,18 @@
-import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  ReactNode,
+} from "react";
 import { generateBenchmarkCode } from "@/data/mockData";
 import { fetchQuestions, submitSurvey } from "@/lib/api/questions";
-import { INSTITUTION_TO_STATE, QUESTIONNAIRE_VERSION, deriveMobilityDone } from "@/data/questions";
+import {
+  INSTITUTION_TO_STATE,
+  QUESTIONNAIRE_VERSION,
+  deriveMobilityDone,
+} from "@/data/questions";
 import type { Answer, AnswerValue, Question, Submission } from "@/types/survey";
 
 interface SurveyState {
@@ -24,6 +35,9 @@ interface SurveyContextType {
   state: SurveyState;
   questions: Question[];
   questionsLoading: boolean;
+  //state za consent
+  hasConsented: boolean;
+  setHasConsented: (value: boolean) => void;
 
   /** Univerzalni setter — radi za sve tipove pitanja. */
   setAnswer: (questionKey: string, value: AnswerValue) => void;
@@ -64,6 +78,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SurveyState>(initialState);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(true);
+  const [hasConsented, setHasConsented] = useState(false);
 
   // Učitavanje pitanja preko API loader-a (mock dok backend nije zakačen).
   useEffect(() => {
@@ -82,7 +97,10 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setAnswer = (questionKey: string, value: AnswerValue) => {
-    setState((prev) => ({ ...prev, answers: { ...prev.answers, [questionKey]: value } }));
+    setState((prev) => ({
+      ...prev,
+      answers: { ...prev.answers, [questionKey]: value },
+    }));
   };
 
   const setGeneralInfo = (info: SurveyState["generalInfo"]) => {
@@ -99,7 +117,10 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 
   const mobilityDone = useMemo(() => {
     const v = state.answers["exchange_status"];
-    return deriveMobilityDone(typeof v === "string" ? v : undefined) || state.generalInfo.mobility;
+    return (
+      deriveMobilityDone(typeof v === "string" ? v : undefined) ||
+      state.generalInfo.mobility
+    );
   }, [state.answers, state.generalInfo.mobility]);
 
   const completeSurvey = async () => {
@@ -109,7 +130,11 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       setState((prev) => ({ ...prev, isCompleted: true, benchmarkCode }));
     } catch {
       // Ako submit pukne, ostajemo lokalni — generišemo kod kao fallback.
-      setState((prev) => ({ ...prev, isCompleted: true, benchmarkCode: generateBenchmarkCode() }));
+      setState((prev) => ({
+        ...prev,
+        isCompleted: true,
+        benchmarkCode: generateBenchmarkCode(),
+      }));
     }
   };
 
@@ -123,22 +148,32 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
       .filter((v): v is number => typeof v === "number");
 
   const avg = (vals: number[]) =>
-    vals.length === 0 ? 0 : Number((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1));
+    vals.length === 0
+      ? 0
+      : Number((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1));
 
   const getScore = () => avg(likertValues(() => true));
   const getCategoryScore = (category: string) =>
-    avg(likertValues((q) => q.category === category || q.category.startsWith(`${category} -`)));
+    avg(
+      likertValues(
+        (q) =>
+          q.category === category || q.category.startsWith(`${category} -`),
+      ),
+    );
   const getSubcategoryScore = (subcategory: string) =>
     avg(likertValues((q) => q.category === `HABITS - ${subcategory}`));
 
   const getProgress = () => {
     const required = questions.filter((q) => !q.optional);
     if (required.length === 0) return 0;
-    const answered = required.filter((q) => state.answers[q.key] !== undefined).length;
+    const answered = required.filter(
+      (q) => state.answers[q.key] !== undefined,
+    ).length;
     return Math.round((answered / required.length) * 100);
   };
 
-  const buildSubmission = () => buildSubmissionFrom(state, questions, mobilityDone);
+  const buildSubmission = () =>
+    buildSubmissionFrom(state, questions, mobilityDone);
 
   return (
     <SurveyContext.Provider
@@ -146,6 +181,8 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         state,
         questions,
         questionsLoading,
+        hasConsented,
+        setHasConsented,
         setAnswer,
         setGeneralInfo,
         setIsRealAttempt,
@@ -171,8 +208,11 @@ function buildSubmissionFrom(
   mobilityDone: boolean,
 ): Submission {
   const institution =
-    (state.answers["study_status_university"] as string) || state.generalInfo.institution || "Other";
-  const stateName = INSTITUTION_TO_STATE[institution] || state.generalInfo.country || "Unknown";
+    (state.answers["study_status_university"] as string) ||
+    state.generalInfo.institution ||
+    "Other";
+  const stateName =
+    INSTITUTION_TO_STATE[institution] || state.generalInfo.country || "Unknown";
 
   const answers: Answer[] = questions
     .filter((q) => state.answers[q.key] !== undefined)
