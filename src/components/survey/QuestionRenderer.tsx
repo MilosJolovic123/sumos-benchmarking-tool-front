@@ -17,12 +17,15 @@ interface Props {
  * Sve sub-komponente koriste isti API: { question, value, onChange }.
  */
 export function QuestionRenderer({ question, value, onChange }: Props) {
+  // Append an asterisk if the question is mandatory
+  const displayText = question.optional ? question.text : `${question.text} *`;
+
   switch (question.type) {
     case "LIKERT": {
       const v = typeof value === "number" ? value : 3;
       return (
         <LikertScale
-          questionText={question.text}
+          questionText={displayText}
           value={v}
           onChange={(n) => onChange(n)}
           labels={["Strongly disagree", "Strongly agree"]}
@@ -32,7 +35,7 @@ export function QuestionRenderer({ question, value, onChange }: Props) {
     case "SINGLE_CHOICE":
       return (
         <SingleChoice
-          questionText={question.text}
+          questionText={displayText}
           options={question.options as string[]}
           value={typeof value === "string" ? value : undefined}
           onChange={(v) => onChange(v)}
@@ -41,7 +44,7 @@ export function QuestionRenderer({ question, value, onChange }: Props) {
     case "NUMBER":
       return (
         <NumberInput
-          questionText={question.text}
+          questionText={displayText}
           value={typeof value === "number" ? value : undefined}
           onChange={(n) => onChange(n)}
         />
@@ -49,7 +52,7 @@ export function QuestionRenderer({ question, value, onChange }: Props) {
     case "TEXT":
       return (
         <TextInput
-          questionText={question.text}
+          questionText={displayText}
           value={typeof value === "string" ? value : undefined}
           onChange={(v) => onChange(v)}
         />
@@ -57,7 +60,7 @@ export function QuestionRenderer({ question, value, onChange }: Props) {
     case "LIKERT-MATRIX":
       return (
         <LikertMatrix
-          questionText={question.text}
+          questionText={displayText}
           options={question.options as string[]}
           value={isRecord(value) ? value : undefined}
           onChange={(v) => onChange(v)}
@@ -66,7 +69,7 @@ export function QuestionRenderer({ question, value, onChange }: Props) {
     case "RUBRIC":
       return (
         <RubricMatrix
-          questionText={question.text}
+          questionText={displayText}
           dimensions={question.options as RubricDimension[]}
           value={isRecord(value) ? value : undefined}
           onChange={(v) => onChange(v)}

@@ -9,14 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+
 import {
   Dialog,
   DialogContent,
@@ -80,6 +73,11 @@ const CATEGORY_META: {
   { match: (c) => c.startsWith("BARRIERS"), label: "Barriers", icon: Shield },
   { match: (c) => /MOBILITY/i.test(c), label: "Mobility", icon: Globe2 },
 ];
+// Funkcija za mobility done da se samo ovde izvlaci
+export function deriveMobilityDone(exchangeStatusValue: string | undefined): boolean {
+  if (!exchangeStatusValue) return false;
+  return /^Yes|currently on my semester abroad/i.test(exchangeStatusValue);
+}
 
 /** Grupiše pitanja u "step grupe" — jedan tab = jedna meta grupa. */
 type StepGroup = {
@@ -96,26 +94,35 @@ function buildStepGroups(
 ): StepGroup[] {
   const groups: StepGroup[] = [];
 
-  for (const meta of CATEGORY_META) {
-    const matched = questions.filter((q) => meta.match(q.category));
-    if (matched.length === 0) continue;
-    if (meta.label === "Mobility" && !includeMobility) continue;
+  for (const q of questions) {
+    const foundMeta = CATEGORY_META.find((m) => m.match(q.category));
+    const meta = foundMeta
+      ? { key: foundMeta.label.toUpperCase(), label: foundMeta.label, icon: foundMeta.icon }
+      : { key: q.category.toUpperCase(), label: q.category, icon: Sun };
 
-    // Ako se pitanja prostiru kroz više kategorija (npr. HABITS - Travel/Living/...),
-    // pravimo pod-step po jedinstvenoj kategoriji, redosledom prvog pojavljivanja.
-    const seen: string[] = [];
-    for (const q of matched)
-      if (!seen.includes(q.category)) seen.push(q.category);
+    if (!includeMobility && meta.label === "Mobility") continue;
 
-    groups.push({
-      key: meta.label.toUpperCase(),
-      label: meta.label,
-      icon: meta.icon,
-      subSteps: seen.map((cat) => ({
-        category: cat,
-        questions: matched.filter((q) => q.category === cat),
-      })),
-    });
+    let currentGroup = groups[groups.length - 1];
+    if (!currentGroup || currentGroup.key !== meta.key) {
+      currentGroup = {
+        key: meta.key,
+        label: meta.label,
+        icon: meta.icon,
+        subSteps: [],
+      };
+      groups.push(currentGroup);
+    }
+
+    let currentSubStep = currentGroup.subSteps[currentGroup.subSteps.length - 1];
+    if (!currentSubStep || currentSubStep.category !== q.category) {
+      currentSubStep = {
+        category: q.category,
+        questions: [],
+      };
+      currentGroup.subSteps.push(currentSubStep);
+    }
+
+    currentSubStep.questions.push(q);
   }
 
   return groups;
@@ -127,19 +134,66 @@ function shortSubLabel(category: string): string {
   return idx === -1 ? category : category.slice(idx + 3);
 }
 
+function getQuestionStatus(q: Question, answers: Record<string, any>) {
+  const val = answers[q.key];
+  if (val === undefined || val === null || val === "") return false;
+  if (q.type === "LIKERT-MATRIX") {
+    const options = q.options as string[];
+    if (typeof val !== "object" || val === null) return false;
+    return options.every((opt) => val[opt] !== undefined);
+  }
+  if (q.type === "RUBRIC") {
+    const dimensions = q.options as any[];
+    if (typeof val !== "object" || val === null) return false;
+    return dimensions.every((d) => val[d.dimension] !== undefined);
+  }
+  return true;
+}
+
+function getSubStatus(sub: { questions: Question[] }, answers: Record<string, any>) {
+  let totalMandatory = 0;
+  let answeredMandatory = 0;
+  let hasAnyAnswer = false;
+  for (const q of sub.questions) {
+    const answered = getQuestionStatus(q, answers);
+    if (answered) hasAnyAnswer = true;
+    if (!q.optional) {
+      totalMandatory++;
+      if (answered) answeredMandatory++;
+    }
+  }
+  if (totalMandatory === 0) return hasAnyAnswer ? "completed" : "empty";
+  if (answeredMandatory === totalMandatory) return "completed";
+  if (hasAnyAnswer || answeredMandatory > 0) return "partial";
+  return "empty";
+}
+
+function getGroupStatus(g: StepGroup, answers: Record<string, any>) {
+  let allCompleted = true;
+  let hasAnyAnswer = false;
+  for (const sub of g.subSteps) {
+    const s = getSubStatus(sub, answers);
+    if (s !== "completed") allCompleted = false;
+    if (s !== "empty") hasAnyAnswer = true;
+  }
+  if (allCompleted) return "completed";
+  if (hasAnyAnswer) return "partial";
+  return "empty";
+}
+
 export default function SurveyPage() {
   const {
     state,
     questions,
     questionsLoading,
     setAnswer,
-    setGeneralInfo,
+   // setGeneralInfo,
     setIsRealAttempt,
     setEmail,
     completeSurvey,
     getScore,
     getProgress,
-    mobilityDone,
+    // mobilityDone,
     hasConsented,
     setHasConsented,
   } = useSurvey();
@@ -149,26 +203,17 @@ export default function SurveyPage() {
   const [subIdx, setSubIdx] = useState(0);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [showBeforeFinish, setShowBeforeFinish] = useState(false);
-  const [allCountries, setAllCountries] = useState<
-    { name: string; code: string }[]
-  >([]);
+  const [errorKey, setErrorKey] = useState<string | null>(null);
+  //const [mobilityDone, setMobilityDone] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetch("https://restcountries.com/v3.1/all?fields=name,cca2")
-      .then((res) => res.json())
-      .then((data) => {
-        const formatted = data
-          .map((c: any) => ({
-            name: c.name.common,
-            code: c.cca2,
-          }))
-          .sort((a: any, b: any) => a.name.localeCompare(b.name));
-
-        setAllCountries(formatted);
-      })
-      .catch((err) => console.error("Greška pri učitavanju država:", err));
-  }, []);
+  const mobilityDone = useMemo(() => {
+    const v = state.answers["exchange_status"];
+    return (
+      deriveMobilityDone(typeof v === "string" ? v : undefined) 
+      
+    );
+  }, [state.answers]);
 
   const handleDisagree = () => {
     // Toast sa trajanjem (duration) od 3000ms (3 sekunde)
@@ -189,6 +234,25 @@ export default function SurveyPage() {
     [questions, mobilityDone],
   );
 
+  const allQuestionsNav = useMemo(() => {
+    let globalNum = 1;
+    const nav: { num: number; q: Question; gIdx: number; sIdx: number; isAnswered: boolean }[] = [];
+    groups.forEach((g, gIdx) => {
+      g.subSteps.forEach((s, sIdx) => {
+        s.questions.forEach((q) => {
+          nav.push({
+            num: globalNum++,
+            q,
+            gIdx,
+            sIdx,
+            isAnswered: getQuestionStatus(q, state.answers),
+          });
+        });
+      });
+    });
+    return nav;
+  }, [groups, state.answers]);
+
   const currentGroup = groups[groupIdx];
   const currentSub = currentGroup?.subSteps[subIdx];
   const currentQuestions = currentSub?.questions ?? [];
@@ -198,7 +262,56 @@ export default function SurveyPage() {
     : true;
   const isLastGroup = groupIdx === groups.length - 1;
 
+  const globalValidate = () => {
+    for (let gIdx = 0; gIdx < groups.length; gIdx++) {
+      const group = groups[gIdx];
+      for (let sIdx = 0; sIdx < group.subSteps.length; sIdx++) {
+        const sub = group.subSteps[sIdx];
+        for (const q of sub.questions) {
+          if (!q.optional && !getQuestionStatus(q, state.answers)) {
+            return { gIdx, sIdx, key: q.key };
+          }
+        }
+      }
+    }
+    return null;
+  };
+
+//uvek na top
+  useEffect(() => {
+  if (!errorKey) {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'smooth',
+    });
+  }
+}, [groupIdx, subIdx, errorKey]);
+
   const goNext = () => {
+    if (isLastGroup && isLastSub) {
+      const errorLoc = globalValidate();
+      if (errorLoc) {
+        toast.error("Missing answers", {
+          description: "Please answer all mandatory questions. We've highlighted the missing one.",
+          duration: 4000,
+        });
+        setGroupIdx(errorLoc.gIdx);
+        setSubIdx(errorLoc.sIdx);
+        setErrorKey(errorLoc.key);
+        setTimeout(() => {
+          document.getElementById(`question-${errorLoc.key}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 150);
+        return;
+      }
+      
+      setErrorKey(null);
+      setCurrentStep(1);
+      setShowBeforeFinish(true);
+      return;
+    }
+
+    setErrorKey(null);
     if (currentGroup && !isLastSub) {
       setSubIdx(subIdx + 1);
       return;
@@ -208,11 +321,11 @@ export default function SurveyPage() {
       setSubIdx(0);
       return;
     }
-    // Kraj — pitamo Real vs Pilot.
-    setShowBeforeFinish(true);
+    ;
   };
 
   const goBack = () => {
+    setErrorKey(null);
     if (subIdx > 0) {
       setSubIdx(subIdx - 1);
     } else if (groupIdx > 0) {
@@ -220,27 +333,37 @@ export default function SurveyPage() {
       setGroupIdx(groupIdx - 1);
       setSubIdx(prev.subSteps.length - 1);
     } else {
-      setCurrentStep(0);
+      setHasConsented(false);
     }
+
   };
 
-  const handleAttemptChoice = (isReal: boolean) => {
+  const handleAttemptChoice = async (isReal: boolean) => {
     setIsRealAttempt(isReal);
     setShowBeforeFinish(false);
     if (isReal) {
       setShowEmailModal(true);
     } else {
-      completeSurvey();
-      setCurrentStep(2);
+      try {
+        await completeSurvey({ isRealAttempt: false });
+        setCurrentStep(2);
+      } catch (error) {
+        toast.error("Failed to submit to backend. Check console for details.");
+      }
     }
   };
 
-  const handleEmailSubmit = () => {
+  const handleEmailSubmit = async () => {
     setShowEmailModal(false);
-    completeSurvey();
-    setCurrentStep(2);
+    try {
+      await completeSurvey({ isRealAttempt: true, email: state.email });
+      setCurrentStep(2);
+    } catch (error) {
+      toast.error("Failed to submit to backend. Check console for details.");
+    }
   };
-
+  //Ovde treba hendlovati logiku odgovora i bedz koji je dobio - tu treba prosiriti model dodatno moramo da vidimo kako ce se vracati rezultati
+  //I gde ce se zapravo cuvati bedz - da li ima smisla perzistirati ga ili ga racunati svaki put naknadno
   const score = getScore();
   const badge = getBadge(score);
   const progress = getProgress();
@@ -263,7 +386,43 @@ export default function SurveyPage() {
       />
 
       <div className="container py-8">
-        <div className="mx-auto max-w-3xl">
+        <div className={cn("mx-auto flex flex-col md:flex-row items-start justify-center", hasConsented && currentStep === 0 && !showBeforeFinish ? "gap-8 xl:gap-12 max-w-[1400px]" : "max-w-3xl")}>
+          
+          {/* Left Sidebar (Question Navigator) */}
+          {hasConsented && currentStep === 0 && !showBeforeFinish && (
+            <div className="hidden lg:block w-64 xl:w-80 shrink-0">
+              <div className="sticky top-8 max-h-[85vh] overflow-y-auto rounded-lg border bg-card p-4 shadow-sm scrollbar-thin">
+                <h3 className="text-sm font-bold mb-4 text-foreground text-center">Question Navigator</h3>
+                <div className="grid grid-cols-10 gap-1">
+                  {allQuestionsNav.map((item) => (
+                    <button
+                      key={item.q.key}
+                      onClick={() => {
+                        setErrorKey(null);
+                        setGroupIdx(item.gIdx);
+                        setSubIdx(item.sIdx);
+                        setTimeout(() => {
+                          document.getElementById(`question-${item.q.key}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+                        }, 100);
+                      }}
+                      title={item.q.text}
+                      className={cn(
+                        "aspect-square rounded text-[9px] sm:text-[10px] font-bold transition-all flex items-center justify-center border",
+                        item.isAnswered 
+                          ? "bg-green-500 text-white border-green-600 shadow-sm" 
+                          : "bg-yellow-400 text-yellow-950 border-yellow-500 shadow-sm",
+                        item.gIdx === groupIdx && item.sIdx === subIdx && "ring-2 ring-primary ring-offset-2"
+                      )}
+                    >
+                      {item.num}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="flex-1 w-full max-w-3xl mx-auto">
           {!hasConsented ? (
             <ConsentStep
               onAgree={() => setHasConsented(true)}
@@ -271,114 +430,8 @@ export default function SurveyPage() {
             />
           ) : (
             <>
-              {currentStep === 0 && (
-                <div className="rounded-lg border bg-card p-8">
-                  <h2 className="mb-6 text-xl font-bold text-foreground">
-                    General Information
-                  </h2>
-                  <div className="space-y-5">
-                    <div>
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Gender
-                      </Label>
-                      <Select
-                        value={state.generalInfo.gender}
-                        onValueChange={(v) =>
-                          setGeneralInfo({ ...state.generalInfo, gender: v })
-                        }
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Male">Male</SelectItem>
-                          <SelectItem value="Female">Female</SelectItem>
-                          <SelectItem value="Other">Other</SelectItem>
-                          <SelectItem value="I prefer not to say">
-                            Prefer not to say
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Country
-                      </Label>
-                      <Select
-                        value={state.generalInfo.country}
-                        onValueChange={(v) =>
-                          setGeneralInfo({ ...state.generalInfo, country: v })
-                        }
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select country" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {allCountries.map((c) => (
-                            <SelectItem key={c.code} value={c.code}>
-                              {c.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Please select your home university. If not listed,
-                        choose 'Other'.
-                      </Label>
-                      <Select
-                        value={state.generalInfo.institution}
-                        onValueChange={(v) =>
-                          setGeneralInfo({
-                            ...state.generalInfo,
-                            institution: v,
-                          })
-                        }
-                      >
-                        <SelectTrigger className="mt-1">
-                          <SelectValue placeholder="Select university" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {[
-                            "Faculty of Organization and Informatics (FOI)",
-                            "ESIEA",
-                            "University of Žilina",
-                            "University of Maribor",
-                            "Faculty of Organizational Sciences",
-                            "Other",
-                          ].map((c) => (
-                            <SelectItem key={c} value={c}>
-                              {c}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <Switch
-                        checked={state.generalInfo.mobility}
-                        onCheckedChange={(v) =>
-                          setGeneralInfo({ ...state.generalInfo, mobility: v })
-                        }
-                      />
-                      <Label>I have participated in student mobility</Label>
-                    </div>
-                  </div>
-                  <div className="mt-8 flex justify-end">
-                    <Button
-                      onClick={() => setCurrentStep(1)}
-                      className="rounded-full bg-secondary px-8 text-secondary-foreground hover:bg-secondary/90"
-                    >
-                      Next <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* ─────────── Step 1: Dinamička pitanja ─────────── */}
-              {currentStep === 1 && !showBeforeFinish && (
+              {/* ─────────── Step 0 & 1: Dinamička pitanja ─────────── */}
+              {currentStep === 0 && !showBeforeFinish && (
                 <div className="space-y-6">
                   {questionsLoading || groups.length === 0 ? (
                     <div className="rounded-lg border bg-card p-10 text-center text-sm text-muted-foreground">
@@ -390,22 +443,25 @@ export default function SurveyPage() {
                       <div className="flex gap-2 justify-center flex-wrap">
                         {groups.map((g, i) => {
                           const Icon = g.icon;
+                          const status = getGroupStatus(g, state.answers);
                           const isActive = i === groupIdx;
-                          const isPassed = i < groupIdx;
+                          let btnClass = "border bg-card text-muted-foreground hover:bg-muted";
+                          
+                          if (isActive) btnClass = "bg-primary text-primary-foreground";
+                          else if (status === "completed") btnClass = "bg-secondary text-secondary-foreground";
+                          else if (status === "partial") btnClass = "bg-primary text-primary-foreground opacity-80";
+
                           return (
                             <button
                               key={g.key}
                               onClick={() => {
+                                setErrorKey(null);
                                 setGroupIdx(i);
                                 setSubIdx(0);
                               }}
                               className={cn(
                                 "flex items-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold tracking-wider transition-colors",
-                                isActive
-                                  ? "bg-primary text-primary-foreground"
-                                  : isPassed
-                                    ? "bg-secondary text-secondary-foreground"
-                                    : "border bg-card text-muted-foreground hover:bg-muted",
+                                btnClass,
                               )}
                             >
                               <Icon className="h-3.5 w-3.5" />
@@ -424,7 +480,10 @@ export default function SurveyPage() {
                               className="flex items-center"
                             >
                               <button
-                                onClick={() => setSubIdx(i)}
+                                onClick={() => {
+                                  setErrorKey(null);
+                                  setSubIdx(i);
+                                }}
                                 className="flex flex-col items-center gap-1.5"
                               >
                                 <div
@@ -432,7 +491,11 @@ export default function SurveyPage() {
                                     "flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-colors",
                                     subIdx === i
                                       ? "bg-primary text-primary-foreground"
-                                      : "bg-muted text-muted-foreground",
+                                      : getSubStatus(sub, state.answers) === "completed"
+                                        ? "bg-secondary text-secondary-foreground"
+                                        : getSubStatus(sub, state.answers) === "partial"
+                                          ? "bg-primary text-primary-foreground opacity-80"
+                                          : "bg-muted text-muted-foreground",
                                   )}
                                 >
                                   {String(i + 1).padStart(2, "0")}
@@ -459,12 +522,23 @@ export default function SurveyPage() {
                           </div>
                         )}
                         {currentQuestions.map((q) => (
-                          <QuestionRenderer
+                          <div
                             key={q.key}
-                            question={q}
-                            value={state.answers[q.key]}
-                            onChange={(v) => setAnswer(q.key, v)}
-                          />
+                            id={`question-${q.key}`}
+                            className={cn(
+                              "transition-all duration-300",
+                              errorKey === q.key ? "ring-2 ring-destructive ring-offset-2 p-3 bg-destructive/5 rounded-xl" : ""
+                            )}
+                          >
+                            <QuestionRenderer
+                              question={q}
+                              value={state.answers[q.key]}
+                              onChange={(v) => {
+                                if (errorKey === q.key) setErrorKey(null);
+                                setAnswer(q.key, v);
+                              }}
+                            />
+                          </div>
                         ))}
                       </div>
 
@@ -553,7 +627,10 @@ export default function SurveyPage() {
                       <Button
                         variant="outline"
                         className="rounded-full px-6"
-                        onClick={() => setShowBeforeFinish(false)}
+                        onClick={() => {
+                          setShowBeforeFinish(false);
+                          setCurrentStep(0);
+                        }}
                       >
                         Back
                       </Button>
@@ -720,6 +797,12 @@ export default function SurveyPage() {
                 </div>
               )}
             </>
+          )}
+          </div>
+
+          {/* Right Dummy Element (Balances the Left Sidebar to keep the main form perfectly centered) */}
+          {hasConsented && currentStep === 0 && !showBeforeFinish && (
+            <div className="hidden lg:block w-64 xl:w-80 shrink-0" />
           )}
         </div>
       </div>

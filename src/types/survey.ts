@@ -53,10 +53,11 @@ export interface Answer {
 }
 
 export interface Submission {
-  state: string;
-  institution: string;
-  questionnaireVersion: number;
+//  state: string;
+//  institution: string;
+ // questionnaireVersion: number;
   email: string;
-  mobilityDone: boolean;
+//  mobilityDone: boolean;
+  isRealAttempt: boolean;
   answers: Answer[];
 }

@@ -1,4 +1,10 @@
-import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Props {
   options: string[];
@@ -11,26 +17,18 @@ export function SingleChoice({ options, value, onChange, questionText }: Props) 
   return (
     <div className="space-y-3 py-4 border-b border-border/50 last:border-0">
       <p className="text-sm font-medium text-foreground">{questionText}</p>
-      <div className="flex flex-wrap gap-2">
-        {options.map((opt) => {
-          const active = value === opt;
-          return (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => onChange(opt)}
-              className={cn(
-                "rounded-full border px-4 py-2 text-xs font-medium transition-colors",
-                active
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card text-foreground hover:bg-muted",
-              )}
-            >
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger className="w-full sm:w-[300px]">
+          <SelectValue placeholder="Select an option" />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((opt) => (
+            <SelectItem key={opt} value={opt}>
               {opt}
-            </button>
-          );
-        })}
-      </div>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   );
 }

@@ -6,29 +6,28 @@ import React, {
   useState,
   ReactNode,
 } from "react";
-import { generateBenchmarkCode } from "@/data/mockData";
 import { fetchQuestions, submitSurvey } from "@/lib/api/questions";
-import {
-  INSTITUTION_TO_STATE,
-  QUESTIONNAIRE_VERSION,
-  deriveMobilityDone,
-} from "@/data/questions";
-import type { Answer, AnswerValue, Question, Submission } from "@/types/survey";
+import { deriveMobilityDone } from "@/data/questions";
+import type { AnswerValue, Question, Submission } from "@/types/survey";
 
 interface SurveyState {
   /** Backend-shaped answers: questionKey -> AnswerValue (number | string | Record<string, number>). */
   answers: Record<string, AnswerValue>;
   /** Legacy demographic block — zadržano radi back-compat sa Survey.tsx step 0 i Benchmark filterima. */
-  generalInfo: {
-    gender: string;
-    country: string;
-    institution: string;
-    mobility: boolean;
-  };
+  // generalInfo: {
+  //   gender: string;
+  //   country: string;
+  //   institution: string;
+  //   mobility: boolean;
+  // };
+//  mobility: boolean;
   isCompleted: boolean;
   isRealAttempt: boolean | null;
-  benchmarkCode: string | null;
   email: string;
+  results?: {
+    overallScore: number;
+    categoryScores: Record<string, number>;
+  };
 }
 
 interface SurveyContextType {
@@ -42,10 +41,10 @@ interface SurveyContextType {
   /** Univerzalni setter — radi za sve tipove pitanja. */
   setAnswer: (questionKey: string, value: AnswerValue) => void;
 
-  setGeneralInfo: (info: SurveyState["generalInfo"]) => void;
+ // setGeneralInfo: (info: SurveyState["generalInfo"]) => void;
   setIsRealAttempt: (value: boolean) => void;
   setEmail: (email: string) => void;
-  completeSurvey: () => Promise<void>;
+  completeSurvey: (overrides?: Partial<SurveyState>) => Promise<void>;
   resetSurvey: () => void;
 
   /** Skor računa samo nad LIKERT pitanjima (1..5). */
@@ -57,7 +56,7 @@ interface SurveyContextType {
   getProgress: () => number;
 
   /** Da li je student bio na razmeni — derivirano iz odgovora `exchange_status`. */
-  mobilityDone: boolean;
+  // mobilityDone: boolean;
 
   /** Sklapanje payload-a tačno po `Submission` šemi. */
   buildSubmission: () => Submission;
@@ -65,10 +64,10 @@ interface SurveyContextType {
 
 const initialState: SurveyState = {
   answers: {},
-  generalInfo: { gender: "", country: "", institution: "", mobility: false },
+ // generalInfo: { gender: "", country: "", institution: "", mobility: false },
+  // mobility: false,
   isCompleted: false,
   isRealAttempt: null,
-  benchmarkCode: null,
   email: "",
 };
 
@@ -80,7 +79,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
   const [questionsLoading, setQuestionsLoading] = useState(true);
   const [hasConsented, setHasConsented] = useState(false);
 
-  // Učitavanje pitanja preko API loader-a (mock dok backend nije zakačen).
+  // Učitavanje pitanja preko API loader-a.
   useEffect(() => {
     let mounted = true;
     fetchQuestions()
@@ -103,9 +102,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const setGeneralInfo = (info: SurveyState["generalInfo"]) => {
-    setState((prev) => ({ ...prev, generalInfo: info }));
-  };
+  // const setGeneralInfo = (info: SurveyState["generalInfo"]) => {
+  //   setState((prev) => ({ ...prev, generalInfo: info }));
+  // };
 
   const setIsRealAttempt = (value: boolean) => {
     setState((prev) => ({ ...prev, isRealAttempt: value }));
@@ -115,53 +114,41 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, email }));
   };
 
-  const mobilityDone = useMemo(() => {
-    const v = state.answers["exchange_status"];
-    return (
-      deriveMobilityDone(typeof v === "string" ? v : undefined) ||
-      state.generalInfo.mobility
-    );
-  }, [state.answers, state.generalInfo.mobility]);
+  // const mobilityDone = useMemo(() => {
+  //   const v = state.answers["exchange_status"];
+  //   return (
+  //     deriveMobilityDone(typeof v === "string" ? v : undefined) ||
+  //     state.mobility
+  //   );
+  // }, [state.answers, state.mobility]);
 
-  const completeSurvey = async () => {
-    const submission = buildSubmissionFrom(state, questions, mobilityDone);
+  const completeSurvey = async (overrides?: Partial<SurveyState>) => {
+   const finalState = { ...state, ...overrides };
+   const submission = buildSubmissionFrom(finalState, questions);
+   
     try {
-      const { benchmarkCode } = await submitSurvey(submission);
-      setState((prev) => ({ ...prev, isCompleted: true, benchmarkCode }));
-    } catch {
-      // Ako submit pukne, ostajemo lokalni — generišemo kod kao fallback.
+      const response = await submitSurvey(submission);
       setState((prev) => ({
         ...prev,
+        ...overrides,
         isCompleted: true,
-        benchmarkCode: generateBenchmarkCode(),
+        results: response.results,
       }));
+    } catch (error) {
+      console.error("Survey submission failed:", error);
+      setState((prev) => ({ ...prev, ...overrides, isCompleted: true }));
+      throw error;
     }
   };
 
   const resetSurvey = () => setState(initialState);
 
-  // ───── Skor helperi (rade samo nad LIKERT pitanjima) ─────
-  const likertValues = (filterFn: (q: Question) => boolean): number[] =>
-    questions
-      .filter((q) => q.type === "LIKERT" && filterFn(q))
-      .map((q) => state.answers[q.key])
-      .filter((v): v is number => typeof v === "number");
-
-  const avg = (vals: number[]) =>
-    vals.length === 0
-      ? 0
-      : Number((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1));
-
-  const getScore = () => avg(likertValues(() => true));
+  //  Skor helperi oslanjaju se na rezultate sa backend-a 
+  const getScore = () => state.results?.overallScore || 0;
   const getCategoryScore = (category: string) =>
-    avg(
-      likertValues(
-        (q) =>
-          q.category === category || q.category.startsWith(`${category} -`),
-      ),
-    );
+    state.results?.categoryScores?.[category] || 0;
   const getSubcategoryScore = (subcategory: string) =>
-    avg(likertValues((q) => q.category === `HABITS - ${subcategory}`));
+    state.results?.categoryScores?.[`HABITS - ${subcategory}`] || 0;
 
   const getProgress = () => {
     const required = questions.filter((q) => !q.optional);
@@ -172,9 +159,9 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
     return Math.round((answered / required.length) * 100);
   };
 
-  const buildSubmission = () =>
-    buildSubmissionFrom(state, questions, mobilityDone);
-
+// const buildSubmission = () => buildSubmissionFrom(state, questions, mobilityDone);
+ const buildSubmission = () => buildSubmissionFrom(state, questions);
+ 
   return (
     <SurveyContext.Provider
       value={{
@@ -184,7 +171,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         hasConsented,
         setHasConsented,
         setAnswer,
-        setGeneralInfo,
+       // setGeneralInfo,
         setIsRealAttempt,
         setEmail,
         completeSurvey,
@@ -193,7 +180,7 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
         getCategoryScore,
         getSubcategoryScore,
         getProgress,
-        mobilityDone,
+//        mobilityDone,
         buildSubmission,
       }}
     >
@@ -205,32 +192,32 @@ export function SurveyProvider({ children }: { children: ReactNode }) {
 function buildSubmissionFrom(
   state: SurveyState,
   questions: Question[],
-  mobilityDone: boolean,
+//  mobilityDone: boolean
 ): Submission {
-  const institution =
-    (state.answers["study_status_university"] as string) ||
-    state.generalInfo.institution ||
-    "Other";
-  const stateName =
-    INSTITUTION_TO_STATE[institution] || state.generalInfo.country || "Unknown";
+  const answersArray = Object.entries(state.answers).map(([key, value]) => {
+    const q = questions.find((q) => q.key === key);
+    return {
+      questionKey: key,
+      questionText: q?.text || key,
+      category: q?.category || "Unknown",
+      questionVersion: q?.version || 1,
+      value,
+    };
+  });
 
-  const answers: Answer[] = questions
-    .filter((q) => state.answers[q.key] !== undefined)
-    .map((q) => ({
-      questionKey: q.key,
-      questionText: q.text,
-      category: q.category,
-      questionVersion: q.version,
-      value: state.answers[q.key],
-    }));
+//  const stateVal = state.answers["country"] || state.answers["country_of_study"] || state.generalInfo.country;
+//  const institutionVal = state.answers["institution"] || state.answers["home_university"] || state.generalInfo.institution;
+//  const stateVal = state.answers["country"] || state.answers["country_of_study"];
+  //const institutionVal = state.answers["institution"] || state.answers["home_university"];
 
   return {
-    state: stateName,
-    institution,
-    questionnaireVersion: QUESTIONNAIRE_VERSION,
+  //  state: typeof stateVal === "string" && stateVal ? stateVal : "Unknown",
+  //  institution: typeof institutionVal === "string" && institutionVal ? institutionVal : "Unknown",
+  //  questionnaireVersion: 1,
     email: state.email,
-    mobilityDone,
-    answers,
+  //  mobilityDone: mobilityDone,
+    isRealAttempt: state.isRealAttempt ?? false,
+    answers: answersArray,
   };
 }
 
